@@ -10,8 +10,8 @@ on:
       - "docs/**"
       - "**/*.md"
       - "**/*.mdx"
-      - ".agents/**"
-      - "skills/**"
+  #    - ".agents/**"
+  #    - "skills/**"
   workflow_dispatch:
     inputs:
       tag:
