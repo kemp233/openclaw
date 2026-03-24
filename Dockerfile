@@ -7,9 +7,10 @@ ARG OPENCLAW_DOCKER_APT_UPGRADE=1
 ARG OPENCLAW_NODE_BOOKWORM_IMAGE="node:24-bookworm@sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
 ARG OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE="node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
 
-# ── 关键修复点：定义 base-default 阶段 ──────────────────────────
-# 这样下面的 FROM base-${OPENCLAW_VARIANT} 才能找到目标
+# ── 关键修复：定义所有可能的基础阶段名称 ──────────────────────────
+# 无论你传入 variant=default 还是 variant=slim，这里都能接住
 FROM ${OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE} AS base-default
+FROM ${OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE} AS base-slim
 
 # ── Stage 1: Extension Deps ─────────────────────────────────────
 FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS ext-deps
@@ -60,7 +61,7 @@ RUN CI=true pnpm prune --prod && \
     find dist -type f \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.map' \) -delete
 
 # ── Stage 3: Runtime ────────────────────────────────────────────
-# 这里现在可以正确识别 base-default 了
+# 现在它能正确识别 base-default 或 base-slim 了
 FROM base-${OPENCLAW_VARIANT}
 ARG OPENCLAW_VARIANT
 ARG OPENCLAW_DOCKER_APT_UPGRADE
