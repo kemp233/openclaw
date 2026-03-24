@@ -5,9 +5,11 @@ ARG OPENCLAW_EXTENSIONS=""
 ARG OPENCLAW_VARIANT=default
 ARG OPENCLAW_DOCKER_APT_UPGRADE=1
 ARG OPENCLAW_NODE_BOOKWORM_IMAGE="node:24-bookworm@sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
-ARG OPENCLAW_NODE_BOOKWORM_DIGEST="sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
 ARG OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE="node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
-ARG OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST="sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
+
+# ── 关键修复点：定义 base-default 阶段 ──────────────────────────
+# 这样下面的 FROM base-${OPENCLAW_VARIANT} 才能找到目标
+FROM ${OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE} AS base-default
 
 # ── Stage 1: Extension Deps ─────────────────────────────────────
 FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS ext-deps
@@ -58,6 +60,7 @@ RUN CI=true pnpm prune --prod && \
     find dist -type f \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.map' \) -delete
 
 # ── Stage 3: Runtime ────────────────────────────────────────────
+# 这里现在可以正确识别 base-default 了
 FROM base-${OPENCLAW_VARIANT}
 ARG OPENCLAW_VARIANT
 ARG OPENCLAW_DOCKER_APT_UPGRADE
@@ -92,7 +95,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 RUN chown root:root /app
 
 # --- 关键修改 2: 强制固化自定义技能 ---
-# 直接从 Git 仓库上下文复制 skills，防止多阶段构建导致的文件丢失
 COPY skills /app/skills
 
 # 从构建阶段复制程序文件
@@ -108,7 +110,7 @@ ENV OPENCLAW_BUNDLED_PLUGINS_DIR=/app/extensions
 ENV COREPACK_HOME=/usr/local/share/corepack
 RUN install -d -m 0755 "$COREPACK_HOME" && corepack enable
 
-# 浏览器自动化与 Docker CLI 支持（保持原逻辑）
+# 浏览器自动化支持
 ARG OPENCLAW_INSTALL_BROWSER=""
 RUN if [ -n "$OPENCLAW_INSTALL_BROWSER" ]; then \
       apt-get update && apt-get install -y --no-install-recommends xvfb && \
@@ -121,10 +123,9 @@ RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw && chmod +x /app/openclaw.m
 ENV NODE_ENV=production
 
 # --- 关键修改 3: 配置 ROOT 权限 ---
-# 将默认用户从 node 改为 root，允许 AI 自由安装系统包
 USER root
 
-# 设置 OpenClaw 的家目录为 root 路径，防止配置丢失
+# 设置 OpenClaw 的家目录为 root 路径
 ENV OPENCLAW_STATE_DIR=/root/.openclaw
 ENV OPENCLAW_CONFIG_PATH=/root/.openclaw/openclaw.json
 
