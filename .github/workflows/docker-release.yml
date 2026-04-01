@@ -13,9 +13,10 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to backfill (for example v2026.3.22)
+        description: main
         required: true
         type: string
+        default: 'main'
 
 concurrency:
   group: ${{ github.event_name == 'workflow_dispatch' && format('docker-release-manual-{0}', inputs.tag) || format('docker-release-push-{0}', github.run_id) }}
